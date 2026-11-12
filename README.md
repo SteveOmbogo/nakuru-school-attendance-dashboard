@@ -116,3 +116,66 @@ Streamlit provides the interactive web interface through which users explore the
 ## Author
 
 Developed as a practical Python data analytics and Streamlit application project.
+
+## Features
+
+- Upload attendance records using CSV files.
+- Filter attendance by class.
+- Select a custom reporting date range.
+- View overall attendance performance.
+- Compare attendance across classes.
+- Monitor daily attendance trends.
+- View detailed attendance records.
+- Download filtered attendance reports as CSV files.
+
+## How to Use
+
+1. Open the dashboard.
+2. Upload an attendance CSV file.
+3. Select a class or choose All Classes.
+4. Select the reporting date range.
+5. Review the attendance metrics and charts.
+6. Download the filtered attendance report.
+
+### Required CSV Columns
+
+The attendance file must contain:
+
+- `date`
+- `class_name`
+- `students_present`
+- `students_total`
+
+## Project Pricing
+
+### Proposed Development Fee
+
+My proposed introductory price for building and deploying this attendance dashboard is:
+
+**KSh 20,000 per school.**
+
+This covers:
+- Dashboard development.
+- CSV upload functionality.
+- Attendance filtering and reporting.
+- Data visualizations.
+- Deployment and initial setup.
+- Basic user guidance.
+
+Hosting, ongoing maintenance, advanced security, authentication and additional features would be quoted separately.
+
+### Pricing Model
+
+I would charge per school rather than per teacher.
+
+A school is the main client and benefits from a shared attendance reporting system. Charging per teacher could discourage adoption as more teachers join.
+
+### Future Improvements
+
+- Teacher login and authentication.
+- Role-based access to individual class records.
+- Secure storage of attendance data.
+- Automated weekly and monthly reports.
+- School-wide attendance summaries.
+
+**Security note:** The current dashboard uses uploaded CSV files and filtering controls. It does not yet provide secure teacher-specific access. Authentication and server-side authorization would be required before using it for confidential multi-teacher access.

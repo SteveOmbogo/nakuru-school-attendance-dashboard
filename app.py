@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import pandas as pd
 from datetime import timedelta
@@ -25,22 +26,103 @@ st.write(
 )
 
 # ==========================================
-# 3. LOAD ATTENDANCE DATA
+# 3. UPLOAD AND LOAD ATTENDANCE DATA
 # ==========================================
 
-df = pd.read_csv(
-    "attendance.csv",
-    parse_dates=["date"]
+st.header("Upload Attendance Sheet")
+
+uploaded_file = st.file_uploader(
+    "Upload your attendance CSV file",
+    type=["csv"]
+)
+
+try:
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
+    else:
+        df = pd.read_csv("attendance.csv")
+
+except FileNotFoundError:
+    st.error("The default attendance.csv file could not be found.")
+    st.stop()
+
+except pd.errors.EmptyDataError:
+    st.error("The uploaded CSV file is empty.")
+    st.stop()
+
+except Exception as e:
+    st.error(f"Unable to read the CSV file: {e}")
+    st.stop()
+
+# Required columns
+required_columns = [
+    "date",
+    "class_name",
+    "students_present",
+    "students_total"
+]
+
+missing_columns = [
+    column for column in required_columns
+    if column not in df.columns
+]
+
+if missing_columns:
+    st.error(
+        f"Missing required columns: {', '.join(missing_columns)}"
+    )
+    st.stop()
+
+if df.empty:
+    st.warning("The attendance file contains no records.")
+    st.stop()
+
+# Convert columns into appropriate data types
+df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+df["students_present"] = pd.to_numeric(
+    df["students_present"], errors="coerce"
+)
+
+df["students_total"] = pd.to_numeric(
+    df["students_total"], errors="coerce"
+)
+
+# Remove invalid records
+df = df.dropna(subset=required_columns)
+
+df = df[
+    (df["students_total"] > 0)
+    & (df["students_present"] >= 0)
+    & (df["students_present"] <= df["students_total"])
+].copy()
+
+if df.empty:
+    st.error("No valid attendance records were found in this file.")
+    st.stop()
+
+# ==========================================
+# 4. FILTER ATTENDANCE BY CLASS
+# ==========================================
+
+st.header("Filter Attendance by Class")
+
+class_options = ["All Classes"] + sorted(
+    df["class_name"].astype(str).unique().tolist()
+)
+
+selected_class = st.selectbox(
+    "Select Class:",
+    class_options
 )
 
 # ==========================================
-# 4. CREATE DATE-RANGE SLIDER
+# 5. SELECT REPORTING PERIOD
 # ==========================================
 
 min_date = df["date"].min().date()
 max_date = df["date"].max().date()
 
-# Default reporting period: last 30 calendar days
 default_start = max(
     min_date,
     max_date - timedelta(days=29)
@@ -48,17 +130,21 @@ default_start = max(
 
 st.header("Select Reporting Period")
 
-selected_dates = st.slider(
-    "Choose the date range:",
+selected_dates = st.date_input(
+    "Choose the reporting period:",
+    value=(default_start, max_date),
     min_value=min_date,
     max_value=max_date,
-    value=(default_start, max_date),
-    format="DD MMM YYYY"
+    format="DD/MM/YYYY"
 )
 
 # ==========================================
-# 5. FILTER ATTENDANCE DATA
+# 6. FILTER ATTENDANCE DATA
 # ==========================================
+
+if len(selected_dates) != 2:
+    st.info("Please select both a start date and an end date.")
+    st.stop()
 
 filtered_df = df[
     df["date"].between(
@@ -67,21 +153,24 @@ filtered_df = df[
     )
 ].copy()
 
+if selected_class != "All Classes":
+    filtered_df = filtered_df[
+        filtered_df["class_name"].astype(str) == selected_class
+    ].copy()
+
 # ==========================================
-# 6. CALCULATE ATTENDANCE METRICS
+# 7. CALCULATE ATTENDANCE METRICS
 # ==========================================
 
 st.header("Attendance Performance Overview")
 
 if not filtered_df.empty:
 
-    # Calculate overall attendance rate
     overall_rate = (
         filtered_df["students_present"].sum()
         / filtered_df["students_total"].sum()
     ) * 100
 
-    # Calculate attendance performance by class
     class_performance = (
         filtered_df.groupby("class_name")
         [["students_present", "students_total"]]
@@ -93,11 +182,9 @@ if not filtered_df.empty:
         / class_performance["students_total"]
     ) * 100
 
-    # Identify best and worst attending classes
     best_class = class_performance["attendance_rate"].idxmax()
     worst_class = class_performance["attendance_rate"].idxmin()
 
-    # Display three metrics
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -121,7 +208,7 @@ if not filtered_df.empty:
         )
 
     # ==========================================
-    # 7. ATTENDANCE BY CLASS
+    # 8. ATTENDANCE BY CLASS
     # ==========================================
 
     st.header("Attendance by Class")
@@ -140,12 +227,11 @@ if not filtered_df.empty:
     )
 
     # ==========================================
-    # 8. DAILY ATTENDANCE TREND
+    # 9. DAILY ATTENDANCE TRENDS
     # ==========================================
 
     st.header("Daily Attendance Trends")
 
-    # Group records by date and class
     daily_attendance = (
         filtered_df.groupby(["date", "class_name"])
         [["students_present", "students_total"]]
@@ -153,20 +239,17 @@ if not filtered_df.empty:
         .reset_index()
     )
 
-    # Calculate daily attendance rate
     daily_attendance["attendance_rate"] = (
         daily_attendance["students_present"]
         / daily_attendance["students_total"]
     ) * 100
 
-    # Reshape data: dates as rows, classes as columns
     attendance_chart = daily_attendance.pivot(
         index="date",
         columns="class_name",
         values="attendance_rate"
     )
 
-    # Display line chart
     st.line_chart(
         attendance_chart,
         x_label="Date",
@@ -174,7 +257,7 @@ if not filtered_df.empty:
     )
 
     # ==========================================
-    # 9. DISPLAY ATTENDANCE RECORDS
+    # 10. DISPLAY ATTENDANCE RECORDS
     # ==========================================
 
     with st.expander("View Detailed Attendance Records"):
@@ -184,7 +267,6 @@ if not filtered_df.empty:
             width="stretch"
         )
 
-    # Display reporting information
     st.caption(
         f"Selected reporting period: "
         f"{selected_dates[0]} to {selected_dates[1]}"
@@ -192,8 +274,27 @@ if not filtered_df.empty:
 
     st.caption(
         f"Attendance records displayed: {len(filtered_df)} "
-        f"out of {len(df)} total records."
+        f"out of {len(df)} valid records."
+    )
+
+    # ==========================================
+    # 11. DOWNLOAD FILTERED ATTENDANCE REPORT
+    # ==========================================
+
+    st.header("Download Attendance Report")
+
+    csv_data = filtered_df.to_csv(
+        index=False
+    ).encode("utf-8")
+
+    st.download_button(
+        label="Download Filtered Attendance CSV",
+        data=csv_data,
+        file_name="filtered_attendance_report.csv",
+        mime="text/csv"
     )
 
 else:
-    st.warning("No attendance records found for the selected dates.")
+    st.warning(
+        "No attendance records found for the selected class and dates."
+    )
